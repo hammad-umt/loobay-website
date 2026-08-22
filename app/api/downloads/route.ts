@@ -1,9 +1,5 @@
-import {
-  getDownloadCounts,
-  isDownloadPlatform,
-  recordDownload,
-  type DownloadPlatform,
-} from "@/lib/siteStore";
+import { getDownloadCounts, recordDownload } from "@/lib/downloadStore";
+import { isDownloadPlatform, type DownloadPlatform } from "@/lib/siteStore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

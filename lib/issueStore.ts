@@ -52,9 +52,20 @@ type Database = {
         Update: Partial<AdminUser>;
         Relationships: [];
       };
+      download_counts: {
+        Row: { platform: "android" | "ios"; count: number };
+        Insert: { platform: "android" | "ios"; count?: number };
+        Update: Partial<{ platform: "android" | "ios"; count: number }>;
+        Relationships: [];
+      };
     };
     Views: Record<never, never>;
-    Functions: Record<never, never>;
+    Functions: {
+      increment_download_count: {
+        Args: { target_platform: "android" | "ios" };
+        Returns: number;
+      };
+    };
   };
 };
 
