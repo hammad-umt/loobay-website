@@ -26,6 +26,14 @@ type IssueReportRow = {
   created_at: string;
 };
 
+export type AdminUser = {
+  id: string;
+  username: string;
+  password_hash: string;
+  role: "admin" | "support";
+  is_active: boolean;
+};
+
 type Database = {
   public: {
     Tables: {
@@ -36,6 +44,12 @@ type Database = {
           created_at?: string;
         };
         Update: Partial<IssueReportRow>;
+        Relationships: [];
+      };
+      admin_users: {
+        Row: AdminUser;
+        Insert: Omit<AdminUser, "id"> & { id?: string };
+        Update: Partial<AdminUser>;
         Relationships: [];
       };
     };
@@ -63,7 +77,7 @@ export class IssueStoreError extends Error {
 
 let adminClient: SupabaseClient<Database> | undefined;
 
-function getSupabaseAdmin() {
+export function getSupabaseAdmin() {
   if (adminClient) {
     return adminClient;
   }
@@ -184,4 +198,39 @@ export async function saveIssue(input: NewIssue): Promise<StoredIssue> {
     "WRITE_FAILED",
     "Unable to allocate a unique issue reference.",
   );
+}
+
+export async function listIssues(): Promise<IssueReportRow[]> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("issue_reports")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    throw new IssueStoreError(
+      "WRITE_FAILED",
+      "Supabase could not load the issue reports.",
+      error,
+    );
+  }
+
+  return data;
+}
+
+export async function findAdminUser(username: string): Promise<AdminUser | null> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("admin_users")
+    .select("id, username, password_hash, role, is_active")
+    .eq("username", username.trim().toLowerCase())
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) {
+    throw new IssueStoreError("WRITE_FAILED", "Supabase could not load admin users.", error);
+  }
+
+  return data as AdminUser | null;
 }
