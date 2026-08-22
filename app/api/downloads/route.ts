@@ -20,7 +20,7 @@ function json(body: unknown, status = 200): Response {
 function configuredUrl(platform: DownloadPlatform): string | undefined {
   const raw =
     platform === "android"
-      ? process.env.ANDROID_APP_URL?.trim()
+      ? process.env.ANDROID_APP_URL?.trim() || "/downloads/loobay.apk"
       : process.env.IOS_APP_URL?.trim();
 
   if (!raw) {
