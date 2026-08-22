@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 const RESPONSE_HEADERS = {
   "Cache-Control": "no-store, max-age=0",
 } as const;
+const LOCAL_ANDROID_APK_PATTERN = /^\/downloads\/[a-z0-9][a-z0-9._-]*\.apk$/i;
 
 function json(body: unknown, status = 200): Response {
   return Response.json(body, { status, headers: RESPONSE_HEADERS });
@@ -26,33 +27,56 @@ function configuredUrl(platform: DownloadPlatform): string | undefined {
     return undefined;
   }
 
+  if (platform === "android" && LOCAL_ANDROID_APK_PATTERN.test(raw)) {
+    return raw;
+  }
+
   try {
     const url = new URL(raw);
-    return url.protocol === "https:" || url.protocol === "http:"
-      ? url.toString()
-      : undefined;
+    const isLocalDevelopmentUrl =
+      url.protocol === "http:" &&
+      (url.hostname === "localhost" ||
+        url.hostname === "127.0.0.1" ||
+        url.hostname === "::1");
+
+    if (
+      url.username ||
+      url.password ||
+      (url.protocol !== "https:" && !isLocalDevelopmentUrl)
+    ) {
+      return undefined;
+    }
+
+    return url.toString();
   } catch {
     return undefined;
   }
 }
 
 export async function GET(): Promise<Response> {
+  const availability = {
+    android: configuredUrl("android") !== undefined,
+    ios: configuredUrl("ios") !== undefined,
+  };
+
   try {
     const downloads = await getDownloadCounts();
 
     return json({
       downloads,
-      availability: {
-        android: configuredUrl("android") !== undefined,
-        ios: configuredUrl("ios") !== undefined,
-      },
+      availability,
+      tracked: true,
     });
   } catch (error) {
-    console.error("[downloads] Unable to read download statistics.", error);
-    return json(
-      { ok: false, message: "Download statistics are temporarily unavailable." },
-      500,
+    console.error(
+      "[downloads] Unable to read download statistics; continuing without analytics.",
+      error,
     );
+    return json({
+      downloads: { total: 0, android: 0, ios: 0 },
+      availability,
+      tracked: false,
+    });
   }
 }
 
@@ -113,15 +137,16 @@ export async function POST(request: Request): Promise<Response> {
     return json({
       ok: true,
       platform,
+      tracked: true,
       count: downloads[platform],
       total: downloads.total,
       url,
     });
   } catch (error) {
-    console.error("[downloads] Unable to record a download.", error);
-    return json(
-      { ok: false, message: "The download could not be started. Please try again." },
-      500,
+    console.error(
+      "[downloads] Unable to record a download; continuing without analytics.",
+      error,
     );
+    return json({ ok: true, platform, tracked: false, url });
   }
 }

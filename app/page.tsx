@@ -308,16 +308,18 @@ function DownloadSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ platform }),
       });
-      const data = await response.json() as { ok?: boolean; count?: number; total?: number; url?: string; message?: string };
+      const data = await response.json() as { ok?: boolean; tracked?: boolean; count?: number; total?: number; url?: string; message?: string };
       if (!response.ok || !data.ok || !data.url) throw new Error(data.message || "The download could not start.");
-      setStats((current) => ({
-        ...current,
-        downloads: {
-          ...current.downloads,
-          [platform]: data.count ?? current.downloads[platform] + 1,
-          total: data.total ?? current.downloads.total + 1,
-        },
-      }));
+      if (typeof data.count === "number" && typeof data.total === "number") {
+        setStats((current) => ({
+          ...current,
+          downloads: {
+            ...current.downloads,
+            [platform]: data.count as number,
+            total: data.total as number,
+          },
+        }));
+      }
       setDownloadMessage("Your official Loobay download is starting.");
       window.setTimeout(() => window.location.assign(data.url as string), 350);
     } catch (error) {
